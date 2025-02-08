@@ -1,2 +1,5 @@
 # Galkite-AutoInteraction
-Full tutorial On my channel https://t.me/NTExhaust
+MULTI ACCOUNT
+
+Drop your address in *address.txt*
+install module npm install *npm install node-fetch cfonts chalk readline*
