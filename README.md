@@ -1,6 +1,9 @@
 # Galkite-AutoInteraction
 # little change MULTI ACCOUNT & RANDOM AGENT
 
+## Registrasi
+https://testnet.gokite.ai?r=JrxpGcGR
+
 
 ## install
 ```bash
