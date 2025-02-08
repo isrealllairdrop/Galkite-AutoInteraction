@@ -29,6 +29,5 @@ npm install node-fetch cfonts chalk readline
 ## NOTE
 if there is an error rate limit, just ignore it. usually because the site is full
 
-## RESPECT
 ## RESPECT  
 Thanks for the inspiration [@Svz1404](https://github.com/Svz1404) 🎉  
