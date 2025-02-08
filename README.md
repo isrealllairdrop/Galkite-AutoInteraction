@@ -1,8 +1,18 @@
 # Galkite-AutoInteraction
 # little change MULTI ACCOUNT & RANDOM AGENT
 
+
 ## Drop your address in ```address.txt``` per line
 ![image](https://github.com/user-attachments/assets/97ef2ec0-c43c-4c89-8eb8-2b89cee480de)
+
+## HOW TO GET ADDRESS
+- go to chat interaction
+- press F12 or CTRL+SHIFT+I
+- do 1 interaction
+- then look in the Network section and report usage. Go to playload
+- you can see the picture below.
+  
+![image](https://github.com/user-attachments/assets/958ddbae-92be-4e75-833e-cfaaf187a2fb)
 
 ## install
 ```bash
