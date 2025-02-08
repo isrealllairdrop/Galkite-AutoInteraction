@@ -19,7 +19,8 @@ npm install node-fetch cfonts chalk readline
 - then look in the Network section and report usage. Go to playload
 - you can see the picture below.
 
-![Screenshot 2025-02-08 175048](https://github.com/user-attachments/assets/406be877-b834-4abc-a3c6-b4b6e7dd8264)
+![Screenshot 2025-02-08 175048](https://github.com/user-attachments/assets/d5475af7-e95a-41dc-b543-de71ff44558e)
+
 
 
 ## NOTE
