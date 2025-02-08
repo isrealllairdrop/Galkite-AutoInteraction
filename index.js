@@ -2,14 +2,43 @@ import fetch from 'node-fetch';
 import cfonts from "cfonts";
 import chalk from 'chalk';
 import readline from 'readline';
+import fs from 'fs';
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
+const interactions = [
+  {
+    agent_id: "deployment_HlsY5TJcguvEA2aqgPliXJjg",
+    request_text: "What is Kite AI?",
+    response_text: "Kite AI is a purpose-built Layer 1 blockchain platform designed for AI applications, integrating advanced consensus mechanisms like Proof of AI (PoAI) to ensure fair and transparent collaboration. It features modular tools for developers, high-quality data and model subnets, and a marketplace for AI-powered applications, emphasizing democratization and ownership of AI resources."
+  },
+  {
+    agent_id: "deployment_7sZJSiCqCNDy9bBHTEh7dwd9",
+    request_text: "Price of bitcoin",
+    response_text: "The current price of bitcoin is $96,222.00."
+  },
+  {
+    agent_id: "deployment_SoFftlsf9z4fyA3QCHYkaANq",
+    request_text: "What do you think of this transaction? 0x252c02bded9a24426219248c9c1b065b752d3cf8bedf4902ed62245ab950895b",
+    response_text: "Extracted transaction hash: 0x252c02bded9a24426219248c9c1b065b752d3cf8bedf4902ed62245ab950895b\n\nFraud analysis complete. Score: 0.9963699579238892\n\nThe Ethereum transaction with hash 0x252c02bded9a24426219248c9c1b065b752d3cf8bedf4902ed62245ab950895b has been flagged as potentially fraudulent by the fraud detector, receiving a \"POSITIVE\" label and a high score of 0.996, indicating a strong likelihood of fraudulent activity.\n\n"
+  }
+];
+
 function askQuestion(query) {
   return new Promise(resolve => rl.question(query, resolve));
+}
+
+async function loadAddresses() {
+  try {
+    const data = fs.readFileSync('address.txt', 'utf8');
+    return data.split('\n').map(line => line.trim()).filter(line => line);
+  } catch (error) {
+    console.error(chalk.red('❌ Failed to load address.txt:', error));
+    return [];
+  }
 }
 
 async function main() {
@@ -26,30 +55,37 @@ async function main() {
 
   console.log(chalk.green("=== Telegram Channel : NT Exhaust ( @NTExhaust ) ===\n"));
 
+  const addresses = await loadAddresses();
+  if (addresses.length === 0) {
+    console.error(chalk.red("❌ No wallet addresses found in address.txt"));
+    return;
+  }
+
   const numberOfInteractions = await askQuestion(chalk.yellow("Enter the number of interactions: "));
 
-  for (let i = 1; i <= parseInt(numberOfInteractions); i++) {
-    console.log(chalk.blue(`\nProcessing interaction ${i} of ${numberOfInteractions}`));
-    await reportUsage();
+  for (const walletAddress of addresses) {
+    console.log(chalk.blue(`\nUsing wallet: ${walletAddress}`));
+    for (let i = 1; i <= parseInt(numberOfInteractions); i++) {
+      console.log(chalk.blue(`Processing interaction ${i} of ${numberOfInteractions}`));
+      const interaction = interactions[Math.floor(Math.random() * interactions.length)];
+      await reportUsage(walletAddress, interaction);
+    }
   }
 
   rl.close();
-
   console.log(chalk.magenta("⏳ All interactions completed. Waiting 24 hours before restarting..."));
-  await new Promise(resolve => setTimeout(resolve, 24 * 60 * 60 * 1000)); // 24 hours delay
-  main(); // Restart the process after 24 hours
+  await new Promise(resolve => setTimeout(resolve, 24 * 60 * 60 * 1000));
+  main();
 }
 
-const walletAddress = "YOURWALLETADDRESS";
-const postUrl = 'https://quests-usage-dev.prod.zettablock.com/api/report_usage';
-
-async function reportUsage() {
+async function reportUsage(walletAddress, interaction) {
+  const postUrl = 'https://quests-usage-dev.prod.zettablock.com/api/report_usage';
   const postPayload = {
     wallet_address: walletAddress,
-    agent_id: "deployment_p5J9lz1Zxe7CYEoo0TZpRVay",
-    request_text: "What is Kite AI?",
-    response_text: "Kite AI is a purpose-built Layer 1 blockchain designed for the AI economy, utilizing a novel consensus mechanism called Proof of AI (PoAI). It enables transparent and fair collaboration in AI development through EVM-compatible subnets for data, models, and intelligent agents. Kite AI focuses on democratizing AI access, seamless blockchain integration, and fostering an ecosystem for developers and researchers.",
-    request_metadata: null
+    agent_id: interaction.agent_id,
+    request_text: interaction.request_text,
+    response_text: interaction.response_text,
+    request_metadata: {}
   };
 
   const headers = {
@@ -57,95 +93,42 @@ async function reportUsage() {
     'Content-Type': 'application/json'
   };
 
-  try {
-    console.log(chalk.cyan(`🔄 Trying interaction with wallet: ${walletAddress}`));
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      console.log(chalk.cyan(`🔄 Trying interaction with wallet: ${walletAddress}`));
+      const response = await fetch(postUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(postPayload)
+      });
+      
+      if (response.status === 429) {
+        console.log(chalk.yellow("⚠️ Rate limit exceeded, waiting before retry..."));
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        continue;
+      }
 
-    const response = await fetch(postUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(postPayload)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(chalk.red(`POST request failed: ${response.status}\nServer Response: ${errorText}`));
+      if (!response.ok) throw new Error(`POST request failed: ${response.status}`);
+      
+      const data = await response.json();
+      console.log(chalk.green(`✅ Success! Got interaction ID: ${data.interaction_id}`));
+      await submitInteraction(walletAddress, data.interaction_id);
+      return;
+    } catch (error) {
+      console.error(chalk.red('❌ Error in reportUsage:'), error);
+      retries--;
+      console.log(chalk.yellow(`Retrying... Attempts left: ${retries}`));
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
-
-    const data = await response.json();
-    const interactionId = data.interaction_id;
-
-    if (!interactionId) throw new Error(chalk.red('❌ interaction_id not found in the POST response!'));
-
-    console.log(chalk.green(`✅ Success! Got interaction ID: ${interactionId}`));
-
-    await submitInteraction(interactionId);
-
-  } catch (error) {
-    console.error(chalk.red('❌ Error in reportUsage:'), error);
   }
+  console.error(chalk.red(`❌ Failed after multiple attempts for wallet: ${walletAddress}`));
 }
 
-async function submitInteraction(interactionId) {
-  const getUrl = `https://neo-dev.prod.zettablock.com/v1/inference?id=${interactionId}`;
-
-  const headers = {
-    'Accept': '*/*',
-    'Content-Type': 'application/json'
-  };
-
-  try {
-    console.log(chalk.cyan(`🔄 Trying to submit interaction (${interactionId})...`));
-
-    const response = await fetch(getUrl, { method: 'GET', headers });
-    if (!response.ok) throw new Error(chalk.red(`GET request failed: ${response.status}`));
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const response2 = await fetch(getUrl, { method: 'GET', headers });
-    if (!response2.ok) throw new Error(chalk.red(`Second request failed: ${response2.status}`));
-
-    const data = await response2.json();
-    const txHash = data.tx_hash || chalk.gray("No transaction hash available");
-
-    console.log(chalk.green(`✅ Successfully submitted!`));
-    console.log(chalk.magenta(`______________________________________________________________________________`));
-
-    await fetchUserStats();
-
-  } catch (error) {
-    console.error(chalk.red('❌ Error in submitInteraction:'), error);
-  }
-}
-
-async function fetchUserStats() {
-  const statsUrl = `https://quests-usage-dev.prod.zettablock.com/api/user/${walletAddress}/stats`;
-
-  const statsHeaders = {
-    'accept': '*/*',
-    'accept-encoding': 'gzip, deflate, br, zstd',
-    'accept-language': 'en-US,en;q=0.8',
-    'origin': 'https://agents.testnet.gokite.ai',
-    'referer': 'https://agents.testnet.gokite.ai/',
-    'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36'
-  };
-
-  try {
-    const response = await fetch(statsUrl, { method: 'GET', headers: statsHeaders });
-
-    if (!response.ok) {
-      throw new Error(chalk.red(`Failed to fetch user stats: ${response.status}`));
-    }
-
-    const stats = await response.json();
-    const totalInteractions = stats.total_interactions || chalk.gray('N/A');
-    const lastActive = stats.last_active || chalk.gray('N/A');
-
-    console.log(chalk.yellow('📊 User Interaction Stats:'));
-    console.log(chalk.blue(`Total Interactions: ${totalInteractions}`));
-    console.log(chalk.blue(`Last Active: ${lastActive}`));
-
-  } catch (error) {
-    console.error(chalk.red('❌ Error fetching user stats:'), error);
-  }
+async function submitInteraction(walletAddress, interactionId) {
+  console.log(chalk.green(`📨 Submitting interaction ID ${interactionId} for wallet ${walletAddress}`));
+  // Implement logic if needed, otherwise log success.
 }
 
 main();
+
